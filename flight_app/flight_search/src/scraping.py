@@ -1,4 +1,5 @@
 from datetime import datetime
+from hashlib import sha1
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -7,6 +8,7 @@ class SouthwestFlightData(object):
     def __init__(self, form_data):
         url = "https://www.southwest.com/flight/search-flight.html?preserveBugFareType=TRUE"
         response = requests.post(url, data=form_data)
+        self.query_date = datetime.now()
         self.form = form_data
         self.soup = BeautifulSoup(response.content, "lxml")
 
@@ -110,6 +112,27 @@ class SouthwestFlightData(object):
                     datetime.strptime(time, '%I:%M %p').time())
 
         return depart_list, arrive_list
+
+    def flight_hash(self, x):
+        """
+        Constructs the SHA1 hash based on airline code, depart_city,
+        destination city, and flight numbers.
+        To be used as a lambda function in a pd.DataFrame.apply()
+        call.
+
+        Args:
+            x (pd.DataFrame row):
+
+        :return:
+         string of hash
+        """
+        flight_str = "{airline}+{depart_city}+{dest_city}+{flight_num}".format(
+            airline=x['airline'], depart_city=x['depart_city'],
+            dest_city=x['destination_city'],
+            flight_num='&'.join([str(flight) for flight in x['flight_numbers']])
+        )
+
+        return sha1(flight_str).hexdigest()
     
     @property
     def df(self):
@@ -121,8 +144,8 @@ class SouthwestFlightData(object):
         """
         # Extract the lists from the flight time tuple
         depart_times, arrive_times = self.depart_and_arrive_lists
-        data = {'arrivals': arrive_times, 'departures': depart_times, 
-                'flight_numbers': self.flight_numbers, 'prices': self.prices,
+        data = {'arrival': arrive_times, 'departure': depart_times,
+                'flight_numbers': self.flight_numbers, 'price': self.prices,
                 'depart_or_return': self.depart_or_return_list}
         
         df = pd.DataFrame(data)
@@ -137,9 +160,28 @@ class SouthwestFlightData(object):
                 self.form['returnDateString'], '%m/%d/%Y').date()
         df.loc[df.depart_or_return=='depart', 'depart_date'] = depart_date
         df.loc[df.depart_or_return=='return', 'depart_date'] = return_date
+        # Add depart city
+        df.loc[df.depart_or_return == 'depart', 'depart_city'] = \
+            self.form['originAirport']
+        df.loc[df.depart_or_return == 'return', 'depart_city'] = \
+            self.form['destinationAirport']
+        # Add destination city
+        df.loc[df.depart_or_return == 'depart', 'destination_city'] = \
+            self.form['destinationAirport']
+        df.loc[df.depart_or_return == 'return', 'destination_city'] = \
+            self.form['originAirport']
+
+        # Add airline ICAO code
+        df.loc[:,'airline'] = 'SWA'
+
+        # Add query date
+        df.loc[:, 'query_dt'] = self.query_date
+
+        # Add flight hash
+        df.loc[:, 'flight_hash'] = df.apply(lambda x: self.flight_hash(x),
+                                            axis=1)
 
         # Filter out rows with missing price data
-        df = df[df.prices > 0]
+        df = df[df.price > 0]
 
         return df
-        

@@ -1,8 +1,4 @@
-from datetime import datetime, timedelta
-import pandas as pd
-
-from src.scraping import SouthwestFlightData
-from src.tripsearches import WeekendSearch
+from flight_app.flight_search.src.tripsearches import WeekendSearch
 
 depart_weekdays = [5] # Monday = 1
 trip_duration = 2 # in days

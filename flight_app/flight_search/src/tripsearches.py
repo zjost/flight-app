@@ -85,7 +85,7 @@ class WeekendSearch(object):
             on = 'trip_ind', suffixes = ['_dep', '_ret'])
 
         # Add a "total_price" column
-        joined_trips['total_price'] = joined_trips.prices_dep + joined_trips.prices_ret
+        joined_trips['total_price'] = joined_trips.price_dep + joined_trips.price_ret
         
         self.joined_trips = joined_trips
    
