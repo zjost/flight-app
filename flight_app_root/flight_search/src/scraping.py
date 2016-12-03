@@ -124,7 +124,7 @@ class SouthwestFlightData(object):
             x (pd.DataFrame row):
 
         :return:
-         string of hash
+         SHA1 hash string
         """
         flight_str = "{airline}+{depart_city}+{dest_city}+{flight_num}".format(
             airline=x['airline'], depart_city=x['depart_city'],
